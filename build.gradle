@@ -1,0 +1,30 @@
+group 'org.fero'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'docker'
+
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'se.transmode.gradle:gradle-docker:1.2'
+    }
+}
+
+docker {
+    baseImage "ubuntu"
+    maintainer 'Wei Guo <wei.mybox@gmail.com>'
+}
+
+task buildDocker(type: Docker) {
+    applicationName = 'silicon-love'
+    runCommand 'echo "Start Succeeded!"'
+}
+
+repositories {
+    mavenCentral();
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+}
