@@ -1,0 +1,10 @@
+logging:
+  level: INFO
+  loggers:
+    org.fero.siliconlove: DEBUG
+  appenders:
+    - type: file
+      threshold: INFO
+      currentLogFilename: ./logs/siliconlove.log
+      archivedLogFilenamePattern: ./logs/siliconlove-%d.log.gz
+      archivedFileCount: 5
