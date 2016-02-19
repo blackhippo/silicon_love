@@ -64,17 +64,14 @@ task buildDocker(type: Docker, dependsOn: fatJar) {
     applicationName = 'silicon-love'
 
     /*
-     * Add all required files into docker
+     * Update system
      */
-    addFile 'build/libs/silicon-love-fat.jar', executionDir
-    addFile configPath, executionDir
+    runCommand 'apt-get update'
+    runCommand 'apt-get install -y software-properties-common'
 
     /*
      * Install java 8
      */
-    runCommand 'apt-get update'
-    runCommand 'apt-get install -y  software-properties-common'
-
     runCommand 'add-apt-repository -y ppa:webupd8team/java'
     runCommand 'apt-get update'
     runCommand 'echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | sudo /usr/bin/debconf-set-selections'
@@ -83,9 +80,15 @@ task buildDocker(type: Docker, dependsOn: fatJar) {
     /*
      * Install mysql
      */
-    runCommand 'apt-get -y install mysql-server'
+    runCommand 'apt-get install -y mysql-client mysql-server'
     // Overwrite mysql cnf
     addFile 'conf/my.cnf', '/etc/mysql/my.cnf'
+
+    /*
+     * Add all required files into docker
+     */
+    addFile 'build/libs/silicon-love-fat.jar', executionDir
+    addFile configPath, executionDir
 
     /*
      * Expose server and mysql port
