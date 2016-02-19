@@ -56,14 +56,40 @@ task fatJar(type: OneJar) {
  */
 
 docker {
-    baseImage "java:8"
+    baseImage "ubuntu:latest"
     maintainer 'Wei Guo <wei.mybox@gmail.com>'
 }
 
 task buildDocker(type: Docker, dependsOn: fatJar) {
     applicationName = 'silicon-love'
+
+    /*
+     * Add all required files into docker
+     */
     addFile 'build/libs/silicon-love-fat.jar', executionDir
     addFile configPath, executionDir
+
+    /*
+     * Install java 8
+     */
+    runCommand 'apt-get update'
+    runCommand 'apt-get install -y  software-properties-common'
+
+    runCommand 'add-apt-repository -y ppa:webupd8team/java'
+    runCommand 'apt-get update'
+    runCommand 'echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | sudo /usr/bin/debconf-set-selections'
+    runCommand 'apt-get install -y oracle-java8-installer'
+
+    /*
+     * Install mysql
+     */
+    runCommand 'apt-get -y install mysql-server'
+    // Overwrite mysql cnf
+    addFile 'conf/my.cnf', '/etc/mysql/my.cnf'
+
+    /*
+     * Expose server and mysql port
+     */
     exposePort 8080
-    runCommand 'echo "Setup environment completed!"'
+    exposePort 3306
 }

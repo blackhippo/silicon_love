@@ -8,3 +8,8 @@ logging:
       currentLogFilename: ./logs/siliconlove.log
       archivedLogFilenamePattern: ./logs/siliconlove-%d.log.gz
       archivedFileCount: 5
+
+server:
+  applicationConnectors:
+    - type: http
+      port: 8080
