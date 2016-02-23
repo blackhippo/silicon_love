@@ -1,6 +1,8 @@
 package org.fero.siliconlove;
 
 import io.dropwizard.Application;
+import io.dropwizard.db.DataSourceFactory;
+import io.dropwizard.migrations.MigrationsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import org.fero.siliconlove.config.SiliconLoveConfig;
@@ -24,7 +26,12 @@ public class SiliconLoveApplication extends Application<SiliconLoveConfig> {
 
     @Override
     public void initialize(Bootstrap<SiliconLoveConfig> bootstrap) {
-        // TODO: Add more initialization steps.
+        bootstrap.addBundle(new MigrationsBundle<SiliconLoveConfig>() {
+            @Override
+            public DataSourceFactory getDataSourceFactory(SiliconLoveConfig configuration) {
+                return configuration.getDataSourceFactory();
+            }
+        });
     }
 
     @Override

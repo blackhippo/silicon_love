@@ -3,17 +3,22 @@ version '1.0-SNAPSHOT'
 
 apply plugin: 'application'
 apply plugin: 'docker'
-apply plugin: 'gradle-one-jar'
+apply plugin: 'java'
 
 buildscript {
     repositories {
-        mavenCentral();
         jcenter()
     }
     dependencies {
         classpath 'se.transmode.gradle:gradle-docker:1.2'
-        classpath 'com.github.rholder:gradle-one-jar:1.0.4'
     }
+}
+
+project.ext {
+    configPath = "$rootProject.projectDir/conf/SiliconLove.yml"
+    executionDir = 'opt/'
+    dbName = 'silicon-love-db'
+    dropwizardVersion = '0.9.2'
 }
 
 repositories {
@@ -22,7 +27,12 @@ repositories {
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.11'
-    compile 'io.dropwizard:dropwizard-core:0.9.2'
+    compile (
+        'mysql:mysql-connector-java:5.1.38',
+        'io.dropwizard:dropwizard-core:' + dropwizardVersion,
+        'io.dropwizard:dropwizard-migrations:' + dropwizardVersion,
+        'io.dropwizard:dropwizard-hibernate:' + dropwizardVersion
+    )
 }
 
 clean.doFirst {
@@ -34,9 +44,13 @@ clean.doFirst {
  */
 mainClassName = "org.fero.siliconlove.SiliconLoveApplication"
 
-project.ext {
-    configPath = "$rootProject.projectDir/conf/SiliconLove.yml"
-    executionDir = 'opt/'
+jar {
+    manifest {
+        attributes (
+            'Main-Class': mainClassName,
+            'Class-Path': configurations.compile.collect { it.getName() }.join(' ')
+        )
+    }
 }
 
 run {
@@ -44,11 +58,11 @@ run {
 }
 
 /**
- * Build a fat jar.
+ * Copy dependencies into libs
  */
-task fatJar(type: OneJar) {
-    mainClass = mainClassName
-    archiveName = 'silicon-love-fat.jar'
+task copyDependencies(type: Copy) {
+    into 'build/libs'
+    from configurations.runtime
 }
 
 /**
@@ -56,43 +70,53 @@ task fatJar(type: OneJar) {
  */
 
 docker {
-    baseImage "ubuntu:latest"
     maintainer 'Wei Guo <wei.mybox@gmail.com>'
 }
 
-task buildDocker(type: Docker, dependsOn: fatJar) {
-    applicationName = 'silicon-love'
+/*
+ * MySql related tasks
+ */
+def checkMySql() {
+    def output = new ByteArrayOutputStream()
+    exec {
+        commandLine 'docker', 'ps', '-a'
+        standardOutput = output
+    }
+    return output.toString()
+}
 
-    /*
-     * Update system
-     */
-    runCommand 'apt-get update'
-    runCommand 'apt-get install -y software-properties-common'
+task stopMySql(type: Exec) {
+    // Stop the db container if there was one.
+    if (checkMySql().contains(dbName)) {
+        commandLine 'docker', 'stop', dbName
+        commandLine 'docker', 'rm', dbName
+    } else {
+        commandLine 'echo', '"No DB started"'
+    }
+}
 
-    /*
-     * Install java 8
-     */
-    runCommand 'add-apt-repository -y ppa:webupd8team/java'
-    runCommand 'apt-get update'
-    runCommand 'echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | sudo /usr/bin/debconf-set-selections'
-    runCommand 'apt-get install -y oracle-java8-installer'
+// Fresh start mysql db container.
+task startMySql(type: Exec, dependsOn: stopMySql) {
+    commandLine 'docker', 'run', '--name', dbName,
+            '-e', 'MYSQL_ROOT_PASSWORD=test',
+            '-e', 'MYSQL_DATABASE=silicon-love',
+            '-d', 'mysql:latest'
+}
 
-    /*
-     * Install mysql
-     */
-    runCommand 'apt-get install -y mysql-client mysql-server'
-    // Overwrite mysql cnf
-    addFile 'conf/my.cnf', '/etc/mysql/my.cnf'
+task buildApp(type: Docker, dependsOn: copyDependencies) {
+    applicationName = 'silicon-love-app'
+    tagVersion = '1.0'
+
+    baseImage 'java:8'
 
     /*
      * Add all required files into docker
      */
-    addFile 'build/libs/silicon-love-fat.jar', executionDir
+    addFile 'build/libs', executionDir + '/libs'
     addFile configPath, executionDir
 
     /*
      * Expose server and mysql port
      */
     exposePort 8080
-    exposePort 3306
 }
